@@ -1,3 +1,5 @@
+from socket import *
+
 colors = ['heart', 'diamonds', 'spades', 'clubs']
 
 class User:
@@ -31,3 +33,22 @@ class Room:
 
 	def getRoomInfo(self):
 		return {"id": self.id, "host": self.userHost, "lobby": self.lobby}
+
+class MySocket():
+	def __init__(self, host, port):
+		self.host = host
+		self.port = port
+  
+	def Connect(self):
+		self.socket = socket(AF_INET, SOCK_STREAM)
+		self.socket.connect((self.host, self.port))
+  
+	def Disconnect(self):
+		self.socket.close()
+  
+	def Send(self, data):
+		self.Connect()
+		self.socket.send(data)
+		returnedData = self.socket.recv(1024).decode()
+		self.Disconnect()
+		return returnedData
