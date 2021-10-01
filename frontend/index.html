@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+</head>
+
+<body>
+    <h3 class="text-center">Bem vindo</h3>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-6">
+                <div class="mb-3">
+                    <label for="inputUsername" class="form-label">Digite um nome de usuário</label>
+                    <input type="text" class="form-control" id="inputUsername" placeholder="Usuário">
+                    <button type="submit" class="btn btn-primary mt-3 w-100" id="btnLogin"
+                        onclick="login()">Login</button>
+                    <button type="submit" class="btn btn-warning mt-3 w-100" id="btnLogin" onclick="createRoom()">Criar
+                        sala</button>
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-center" id="div-room-list">
+            <div class="col-6">
+                <h5>Salas:</h5>
+                <div class="list-group" id="div-rooms">
+                    <a href="#" class="list-group-item list-group-item-action">Faça login para buscar salas</a>
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-center" id="div-room">
+            <div class="col-12">
+                <div class="room">
+                    <h5 id="room-title"></h5>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let apiURL = 'http://localhost:8000/';
+        var userId = 0;
+        function login() {
+            let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        let data = JSON.parse(xhr.responseText);
+                        userId = data.id;
+                        document.getElementById('inputUsername').disabled = true;
+                        document.getElementById('btnLogin').disabled = true;
+                        searchRooms();
+                    }
+                }
+            };
+            xhr.open('POST', apiURL + 'createUser');
+            xhr.send(JSON.stringify({ username: document.getElementById('inputUsername').value }));
+        }
+
+        function enterRoom(roomId) {
+            let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        let data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            document.getElementById('div-room-list').style.display = "none";
+                            document.getElementById('div-room').style.display = "block";
+                            document.getElementById('room-title').innerHTML = "Sala " + data.roomId;
+                        } else {
+                            alert(data.message)
+                        }
+                    }
+                }
+            };
+            xhr.open('POST', apiURL + 'enterRoom');
+            xhr.send(JSON.stringify({ roomId: roomId }));
+        }
+
+        function createRoom() {
+            let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        let data = JSON.parse(xhr.responseText);
+                        console.log(data);
+                        if (data.success) {
+
+                        } else {
+                            alert(data.message)
+                        }
+                        searchRooms();
+                    }
+                }
+            };
+            xhr.open('POST', apiURL + 'createRoom');
+            xhr.send(JSON.stringify({ userId: userId }));
+        }
+
+        function searchRooms() {
+            let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        let data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            document.getElementById('div-rooms').innerHTML = '';
+                            if (data.rooms.length == 0) {
+                                document.getElementById('div-rooms').innerHTML = '<a href="#" class="list-group-item list-group-item-action">Nenhuma sala encontrada</a>';
+                            }
+                            data.rooms.forEach(room => {
+                                document.getElementById('div-rooms').innerHTML += `
+                                    <a href="#" class="list-group-item list-group-item-action" onclick="enterRoom(${room.id})">
+                                        Sala: ${room.id}<br>
+                                        Dono da sala: ${room.host}<br>
+                                        Pessoas na sala: ${room.lobby.length}
+                                    </a>
+                                `;
+                            });
+                        } else {
+                            alert(data.message)
+                        }
+                    }
+                }
+            };
+            xhr.open('POST', apiURL + 'searchRooms');
+            xhr.send(JSON.stringify({ userId: userId }));
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>
