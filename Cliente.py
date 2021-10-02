@@ -8,9 +8,11 @@ option = -1
 user = None
 mySocket = MySocket('localhost', 12000)
 
+# Função para criar um usuário
 def createUser(username):
+    # Verifica se o nome de usuário é válido
     if len(username) == 0:
-        {"success": False, "message": "Nome de usuário inválido"}
+        return {"success": False, "message": "Nome de usuário inválido"}
     else:
         returnData = json.loads((mySocket.Send(json.dumps({"action": "newUser", "username": username}).encode())))
         if returnData['success']:
