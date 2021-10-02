@@ -8,12 +8,50 @@
     <title>Document</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+    <style>
+        .room {
+            height: 90vh;
+            border: 1px lightgray solid;
+            padding: 30px;
+            border-radius: 5px;
+        }
+
+        #div-room {
+            display: none;
+        }
+
+        #room-title {
+            width: fit-content;
+            padding: 5px;
+            background-color: white;
+            border-radius: 10px;
+        }
+
+        .room {
+            background: url('../img/background.jpg') no-repeat fixed center;
+            background-size: cover;
+        }
+
+        .table {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+        }
+
+        .card-player {
+            width: 50px;
+            height: 71px;
+        }
+    </style>
 </head>
 
 <body>
-    <h3 class="text-center">Bem vindo</h3>
+    <h3 class="text-center">Black Jack</h3>
     <div class="container">
-        <div class="row justify-content-center">
+        <div class="row justify-content-center" id="div-login">
             <div class="col-6">
                 <div class="mb-3">
                     <label for="inputUsername" class="form-label">Digite um nome de usuário</label>
@@ -37,6 +75,42 @@
             <div class="col-12">
                 <div class="room">
                     <h5 id="room-title"></h5>
+                    <div class="table">
+                        <div class="player1 justify-content-center text-center" id="div-player1">
+                            <h3 id="name-player1" style="color: white;">Esperando outro jogador entrar</h3>
+                            <div class="deck" id="deck-player" style="display: flex;">
+
+                            </div>
+                        </div>
+                        <div class="justify-content-center text-center" style="display: none;" id="div-btn-start-game">
+                            <button class="btn btn-primary mt-3" disabled id="btn-start-game"
+                                onclick="startGame()">Iniciar jogo</button>
+                        </div>
+                        <div class="justify-content-center text-center" style="display: none;" id="div-btn-actions">
+                            <button class="btn btn-secondary mt-3" id="btn-get-card" onclick="getCard()">Pegar
+                                carta</button>
+                            <button class="btn btn-danger mt-3" id="btn-stop" onclick="stop()">Parar</button>
+                            <div id="div-time-to-play" style="display: none;">
+                                <h4 id="time-to-play" style="color: white;"></h4>
+                            </div>
+                        </div>
+                        <div class="justify-content-center text-center" style="display: none; color: white;"
+                            id="text-waiting-host">
+                            <h6>Esperando o dono da sala iniciar o jogo</h6>
+                        </div>
+                        <div class="justify-content-center text-center" style="display: none; color: white;"
+                            id="div-ganhador">
+                        </div>
+                        <div class="player2 text-center">
+                            <div class="deck" id="deck" style="display: flex;">
+
+                            </div>
+                            <h4 id="text-waiting-player" style="display: none;color: white;">O outro jogador está
+                                jogando</h4><br>
+                            <h4 id="text-your-turn" style="display: none;color: white;">É a sua vez de jogar</h4><br>
+                            <h3 style="color: white;">Você</h3>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -44,6 +118,19 @@
     <script>
         let apiURL = 'http://localhost:8000/';
         var userId = 0;
+        var roomId = 0;
+        var roundId = 0;
+        var quantityCards = 0;
+        var gameStarted = false;
+        var intervalRoom;
+        var intervalRound;
+        var timeToPlay = 10;
+        var timeToPlayInterval;
+        var findRoomsInterval;
+        // var timerStarted = false;
+        var deckCards = ['', "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "K", "Q"];
+        var simbolsName = ["heart", "diamonds", "spades", "clubs"]
+        var simbols = ['♥', '❖', '♠', '♣']
         function login() {
             let xhr = new XMLHttpRequest();
             xhr.onreadystatechange = () => {
@@ -61,16 +148,16 @@
             xhr.send(JSON.stringify({ username: document.getElementById('inputUsername').value }));
         }
 
-        function enterRoom(roomId) {
+        function enterRoom(roomIdToEnter) {
             let xhr = new XMLHttpRequest();
             xhr.onreadystatechange = () => {
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
                         let data = JSON.parse(xhr.responseText);
                         if (data.success) {
-                            document.getElementById('div-room-list').style.display = "none";
-                            document.getElementById('div-room').style.display = "block";
-                            document.getElementById('room-title').innerHTML = "Sala " + data.roomId;
+                            roomId = data.roomId;
+                            joinRoom(data.roomId);
+                            clearInterval(findRoomsInterval)
                         } else {
                             alert(data.message)
                         }
@@ -78,7 +165,210 @@
                 }
             };
             xhr.open('POST', apiURL + 'enterRoom');
+            xhr.send(JSON.stringify({ roomId: roomIdToEnter }));
+        }
+
+        function joinRoom(roomId) {
+            document.getElementById('div-room-list').style.display = "none";
+            document.getElementById('div-login').style.display = "none";
+            document.getElementById('div-room').style.display = "block";
+            document.getElementById('room-title').innerHTML = "Sala " + roomId;
+            searchRoomInfo();
+        }
+
+        function unlockStartButtom() {
+            document.getElementById('btn-start-game').disabled = false;
+        }
+
+        function showWaitingHostMessage() {
+            document.getElementById('text-waiting-host').style.display = 'block';
+        }
+
+        function showStartButtom() {
+            document.getElementById('div-btn-start-game').style.display = 'block';
+        }
+
+        function hideWaitingHostMessage() {
+            document.getElementById('text-waiting-host').style.display = 'none';
+        }
+
+        function hideStartButtom() {
+            document.getElementById('div-btn-start-game').style.display = 'none';
+        }
+
+        function showSeccondPlayer(playerName) {
+            document.getElementById('name-player1').innerHTML = `${playerName}`;
+        }
+
+        function startGame() {
+            let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        let data = JSON.parse(xhr.responseText);
+
+                    }
+                }
+            };
+            xhr.open('POST', apiURL + 'startGame');
             xhr.send(JSON.stringify({ roomId: roomId }));
+        }
+
+        function getCard() {
+            let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        let data = JSON.parse(xhr.responseText);
+                        clearInterval(timeToPlayInterval);
+                        timeToPlay = 10;
+                        // timerStarted = false;
+                    }
+                }
+            };
+            xhr.open('POST', apiURL + 'getCard');
+            xhr.send(JSON.stringify({ roundId: roundId, userId: userId }));
+        }
+
+        function stop() {
+            let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        let data = JSON.parse(xhr.responseText);
+                        clearInterval(timeToPlayInterval);
+                    }
+                }
+            };
+            xhr.open('POST', apiURL + 'stop');
+            xhr.send(JSON.stringify({ roundId: roundId, userId: userId }));
+        }
+
+        function searchRoomInfo() {
+            intervalRoom = setInterval(() => {
+                let xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = () => {
+                    if (xhr.readyState == 4) {
+                        if (xhr.status == 200) {
+                            let data = JSON.parse(xhr.responseText);
+                            if (data.success) {
+                                if (data.players.length >= 2 && !gameStarted) {
+                                    if (data.info.host == userId) {
+                                        unlockStartButtom();
+                                    } else {
+                                        showWaitingHostMessage();
+                                    }
+                                    showSeccondPlayer(data.players.find(x => x.id != userId).name);
+                                }
+                                if (data.info.roundId != 0) {
+                                    hideWaitingHostMessage();
+                                    hideStartButtom();
+                                    gameStarted = true;
+                                    clearInterval(intervalRoom);
+                                    roundId = data.info.roundId;
+                                    searchRoundInfo();
+                                }
+                            }
+                        }
+                    }
+                };
+                xhr.open('POST', apiURL + 'searchRoomInfo');
+                xhr.send(JSON.stringify({ roomId: roomId }));
+            }, 1000);
+        }
+
+        function searchRoundInfo() {
+            intervalRound = setInterval(() => {
+                let xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = () => {
+                    if (xhr.readyState == 4) {
+                        if (xhr.status == 200) {
+                            let data = JSON.parse(xhr.responseText);
+                            if (data.info.actualPlayer == userId) {
+                                showYourTurn();
+                            } else {
+                                showWaitingPlayer();
+                            }
+                            if (data.info.cards.length > quantityCards) {
+                                quantityCards += 1;
+                                showCards(data.info.cards);
+                            }
+                            if (data.info.finished) {
+                                showCards(data.info.cards);
+                                clearInterval(intervalRound);
+                                hideActions();
+                                document.getElementById('div-ganhador').style.display = 'block';
+                                document.getElementById('div-ganhador').innerHTML = `<h3>GANHADOR: ${data.info.winner}</h3>`;
+                            }
+                        }
+                    }
+                };
+                xhr.open('POST', apiURL + 'searchRoundInfo');
+                xhr.send(JSON.stringify({ roundId: roundId, userId: userId }));
+            }, 1000);
+        }
+
+        function showCards(cards) {
+            document.getElementById('deck').innerHTML = '';
+            document.getElementById('deck-player').innerHTML = '';
+            cards.forEach(card => {
+                let CardColor = simbolsName.findIndex(x => x == card.card.cardColor);
+                let color = CardColor < 2 ? 'red' : 'black';
+                if (card.card.userId == userId) {
+                    document.getElementById('deck').innerHTML += `
+                        <div class="card card-player" style="margin-right: 11px;background-color: white;color:${color}">
+                            <div class="card-value">
+                                ${deckCards[card.card.cardValue]}
+                            </div>
+                            <div class="card-color">
+                                ${simbols[CardColor]}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('deck-player').innerHTML +=
+                        `<div class="card card-player" style="margin-right: 11px;background-color: white;color:${color}">
+                            <div class="card-value">
+                                ${deckCards[card.card.cardValue] || '-'}
+                            </div>
+                            <div class="card-color">
+                                ${simbols[CardColor] || '-'}
+                            </div>
+                        </div>`;
+                }
+            });
+        }
+
+        function showWaitingPlayer() {
+            document.getElementById('div-time-to-play').style.display = 'none';
+            document.getElementById('div-btn-actions').style.display = 'none';
+            document.getElementById('text-your-turn').style.display = 'none';
+            document.getElementById('text-waiting-player').style.display = 'block';
+        }
+
+        function showYourTurn() {
+            document.getElementById('div-time-to-play').style.display = 'block';
+            // if (!timerStarted) {
+            //     timeToPlayInterval = setInterval(() => {
+            //         timerStarted = true;
+            //         timeToPlay -= 1;
+            //         if (timeToPlay <= 0) {
+            //             clearInterval(timeToPlayInterval);
+            //             timeToPlay = 0;
+            //             stop();
+            //         }
+            //         document.getElementById('time-to-play').innerHTML = timeToPlay + 's';
+            //     }, 1000);
+            // }
+            document.getElementById('div-btn-actions').style.display = 'block';
+            document.getElementById('text-your-turn').style.display = 'block';
+            document.getElementById('text-waiting-player').style.display = 'none';
+        }
+
+        function hideActions() {
+            document.getElementById('div-btn-actions').style.display = 'none';
+            document.getElementById('text-your-turn').style.display = 'none';
+            document.getElementById('text-waiting-player').style.display = 'none';
         }
 
         function createRoom() {
@@ -87,13 +377,14 @@
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
                         let data = JSON.parse(xhr.responseText);
-                        console.log(data);
                         if (data.success) {
-
+                            showStartButtom();
+                            roomId = data.roomId;
+                            joinRoom(data.roomId);
+                            clearInterval(findRoomsInterval)
                         } else {
                             alert(data.message)
                         }
-                        searchRooms();
                     }
                 }
             };
@@ -101,7 +392,7 @@
             xhr.send(JSON.stringify({ userId: userId }));
         }
 
-        function searchRooms() {
+        findRoomsInterval = setInterval(() => {
             let xhr = new XMLHttpRequest();
             xhr.onreadystatechange = () => {
                 if (xhr.readyState == 4) {
@@ -122,14 +413,15 @@
                                 `;
                             });
                         } else {
-                            alert(data.message)
+                            // alert(data.message)
                         }
                     }
                 }
             };
             xhr.open('POST', apiURL + 'searchRooms');
             xhr.send(JSON.stringify({ userId: userId }));
-        }
+        }, 1000);
+
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ"

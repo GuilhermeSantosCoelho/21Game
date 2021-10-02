@@ -34,6 +34,21 @@ def findRoom(userId):
 def enterRoom(roomNumber):
     return json.loads(mySocket.Send(json.dumps({"action": "enterRoom", "roomId": int(roomNumber), "userId": user.id}).encode()))
 
+def searchRoomInfo(roomNumber):
+    return json.loads(mySocket.Send(json.dumps({"action": "roomInfo", "roomId": int(roomNumber)}).encode()))
+
+def searchRoundInfo(roundId, userId):
+    return json.loads(mySocket.Send(json.dumps({"action": "roundInfo", "roundId": int(roundId), "userId": int(userId)}).encode()))
+
+def getCard(roundId, userId):
+    return json.loads(mySocket.Send(json.dumps({"action": "getCard", "roundId": int(roundId), "userId": int(userId)}).encode()))
+
+def stop(roundId, userId):
+    return json.loads(mySocket.Send(json.dumps({"action": "stop", "roundId": int(roundId), "userId": int(userId)}).encode()))
+
+def startGame(roomNumber):
+    return json.loads(mySocket.Send(json.dumps({"action": "startGame", "roomId": int(roomNumber)}).encode()))
+
 if __name__ == "__main__":
     while option != '0':
         print(" MENU")
